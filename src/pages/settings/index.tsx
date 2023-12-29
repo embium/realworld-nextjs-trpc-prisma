@@ -7,8 +7,8 @@ import { z } from 'zod'
 
 const UserSchema = z.object({
   username: z.string(),
-  // If the password should not change, it is not included in the request
   email: z.string(),
+  // If the password should not change, it is not included in the request
   password: z.string().transform(v => v || undefined),
   bio: z.string(),
   // This field can be unset, but has to be null explicitly
