@@ -1,25 +1,26 @@
-import { api, isLoggedIn, setToken } from '$/lib/api'
-import { getErrorArrayFromTrpcResponseError } from '$/lib/errors'
-import { type NextPage } from 'next'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { useEffect } from 'react'
-import { z } from 'zod'
+import { api, isLoggedIn, setToken } from '$/lib/api';
+import { getErrorArrayFromTrpcResponseError } from '$/lib/errors';
+import { type NextPage } from 'next';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+import { z } from 'zod';
 
 const RegisterSchema = z.object({
+  name: z.string(),
   username: z.string(),
   email: z.string(),
   password: z.string(),
-})
+});
 
 const Login: NextPage = () => {
-  const { push } = useRouter()
+  const { push } = useRouter();
 
   useEffect(() => {
     if (isLoggedIn()) {
-      push('/').catch(console.error)
+      push('/').catch(console.error);
     }
-  }, [push])
+  }, [push]);
 
   const {
     mutate: register,
@@ -28,16 +29,16 @@ const Login: NextPage = () => {
     isError,
   } = api.auth.register.useMutation({
     onSuccess: ({ user }) => {
-      setToken(user.token)
-      push('/').catch(console.error)
+      setToken(user.token);
+      push('/').catch(console.error);
     },
-  })
+  });
 
-  const errors = getErrorArrayFromTrpcResponseError(error, isError)
+  const errors = getErrorArrayFromTrpcResponseError(error, isError);
 
   return (
     <div className="auth-page">
-      <div className="container page">
+      <div className="page container">
         <div className="row">
           <div className="col-md-6 offset-md-3 col-xs-12">
             <h1 className="text-xs-center">Sign up</h1>
@@ -52,16 +53,25 @@ const Login: NextPage = () => {
             </ul>
 
             <form
-              onSubmit={e => {
-                e.preventDefault()
-                const data = new FormData(e.currentTarget)
+              onSubmit={(e) => {
+                e.preventDefault();
+                const data = new FormData(e.currentTarget);
 
-                const body = Object.fromEntries(data.entries())
-                const user = RegisterSchema.parse(body)
+                const body = Object.fromEntries(data.entries());
+                const user = RegisterSchema.parse(body);
 
-                register({ user })
+                register({ user });
               }}
             >
+              <fieldset className="form-group">
+                <input
+                  className="form-control form-control-lg"
+                  type="text"
+                  placeholder="Name"
+                  name="name"
+                  disabled={isLoading}
+                />
+              </fieldset>
               <fieldset className="form-group">
                 <input
                   className="form-control form-control-lg"
@@ -89,13 +99,15 @@ const Login: NextPage = () => {
                   disabled={isLoading}
                 />
               </fieldset>
-              <button className="btn btn-lg btn-primary pull-xs-right">Sign up</button>
+              <button className="btn btn-lg btn-primary pull-xs-right">
+                Sign up
+              </button>
             </form>
           </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

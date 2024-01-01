@@ -1,29 +1,30 @@
-import { Layout } from '$/components/Layout'
-import { api, isLoggedIn, setToken } from '$/lib/api'
-import { getErrorArrayFromTrpcResponseError } from '$/lib/errors'
-import { type NextPage } from 'next'
-import { useRouter } from 'next/router'
-import { z } from 'zod'
+import { Layout } from '$/components/Layout';
+import { api, isLoggedIn, setToken } from '$/lib/api';
+import { getErrorArrayFromTrpcResponseError } from '$/lib/errors';
+import { type NextPage } from 'next';
+import { useRouter } from 'next/router';
+import { z } from 'zod';
 
 const UserSchema = z.object({
+  name: z.string(),
   username: z.string(),
-  email: z.string(),
   // If the password should not change, it is not included in the request
-  password: z.string().transform(v => v || undefined),
-  bio: z.string(),
+  email: z.string(),
+  password: z.string().transform((v) => v || undefined),
+  bio: z.string().nullable(),
   // This field can be unset, but has to be null explicitly
-  image: z.string().transform(v => v || null),
-})
+  image: z.string().transform((v) => v || null),
+});
 
-const Login: NextPage = () => {
-  const ctx = api.useContext()
-  const { push } = useRouter()
+const Settings: NextPage = () => {
+  const ctx = api.useUtils();
+  const { push } = useRouter();
 
   // Data
   const { data: userData } = api.auth.me.useQuery(undefined, {
     enabled: isLoggedIn(),
-  })
-  const user = userData?.user
+  });
+  const user = userData?.user;
 
   // Actions
   const {
@@ -31,7 +32,9 @@ const Login: NextPage = () => {
     error,
     isError,
     isLoading,
-  } = api.auth.updateUser.useMutation({ onSuccess: () => ctx.auth.me.invalidate() })
+  } = api.auth.updateUser.useMutation({
+    onSuccess: () => ctx.auth.me.invalidate(),
+  });
 
   if (!user) {
     return (
@@ -40,10 +43,10 @@ const Login: NextPage = () => {
           <div className="page container">Not logged in</div>
         </div>
       </Layout>
-    )
+    );
   }
 
-  const errors = getErrorArrayFromTrpcResponseError(error, isError)
+  const errors = getErrorArrayFromTrpcResponseError(error, isError);
 
   return (
     <Layout privateRoute>
@@ -60,14 +63,14 @@ const Login: NextPage = () => {
               </ul>
 
               <form
-                onSubmit={e => {
-                  e.preventDefault()
-                  const data = new FormData(e.currentTarget)
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const data = new FormData(e.currentTarget);
 
-                  const body = Object.fromEntries(data.entries())
-                  const user = UserSchema.parse(body)
+                  const body = Object.fromEntries(data.entries());
+                  const user = UserSchema.parse(body);
 
-                  updateUser(user)
+                  updateUser(user);
                 }}
               >
                 <fieldset>
@@ -86,6 +89,16 @@ const Login: NextPage = () => {
                       className="form-control form-control-lg"
                       type="text"
                       placeholder="Your Name"
+                      name={'name'}
+                      disabled={isLoading}
+                      defaultValue={user.name}
+                    />
+                  </fieldset>
+                  <fieldset className="form-group">
+                    <input
+                      className="form-control form-control-lg"
+                      type="text"
+                      placeholder="Your Username"
                       name={'username'}
                       disabled={isLoading}
                       defaultValue={user.username}
@@ -135,12 +148,12 @@ const Login: NextPage = () => {
                 type={'button'}
                 disabled={isLoading}
                 onClick={() => {
-                  setToken(null)
+                  setToken(null);
 
                   // Hard reset all user data on the page
-                  ctx.auth.me.reset().catch(console.error)
+                  ctx.auth.me.reset().catch(console.error);
 
-                  push('/').catch(console.error)
+                  push('/').catch(console.error);
                 }}
               >
                 Or click here to logout.
@@ -150,7 +163,7 @@ const Login: NextPage = () => {
         </div>
       </div>
     </Layout>
-  )
-}
+  );
+};
 
-export default Login
+export default Settings;

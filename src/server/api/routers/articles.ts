@@ -1,10 +1,15 @@
-import { truthy } from '$/lib/types'
-import { profileSchema } from '$/server/api/routers/profile'
-import { tagsSchema } from '$/server/api/routers/tags'
-import { createTRPCRouter, protectedProcedure, publicProcedure } from '$/server/api/trpc'
-import { type PrismaClient } from '@prisma/client'
-import { TRPCError } from '@trpc/server'
-import { z } from 'zod'
+import genRandomString from '$/lib/random';
+import { truthy } from '$/lib/types';
+import { profileSchema } from '$/server/api/routers/profile';
+import { tagsSchema } from '$/server/api/routers/tags';
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from '$/server/api/trpc';
+import { type PrismaClient } from '@prisma/client';
+import { TRPCError } from '@trpc/server';
+import { z } from 'zod';
 
 export const articleSchema = z.object({
   slug: z.string().nonempty(),
@@ -15,31 +20,28 @@ export const articleSchema = z.object({
     .array(tagsSchema)
     .nullish()
     .transform((tags): Array<string> => {
-      return tags?.map(tag => tag.value) ?? []
+      return tags?.map((tag) => tag.value) ?? [];
     }),
-  createdAt: z.date().transform(d => d.toISOString()),
-  updatedAt: z.date().transform(d => d.toISOString()),
+  createdAt: z.date().transform((d) => d.toISOString()),
+  updatedAt: z.date().transform((d) => d.toISOString()),
   favorited: z.boolean(),
   favoritesCount: z.number(),
   author: profileSchema,
-})
+});
 
 const paginationInputSchema = z.object({
   offset: z.number().optional(),
   limit: z.number().optional().default(5),
-})
+});
 
 const articleListSchema = z.object({
   articles: articleSchema.array(),
   articlesCount: z.number(),
-})
+});
 
-async function generateUniqueSlug(title: string, prisma: PrismaClient) {
-  const slug = title.toLowerCase().replace(/\s/g, '-')
-  const similarSlugCount = await prisma.article.count({
-    where: { slug: { startsWith: slug } },
-  })
-  return `${slug}-${similarSlugCount + 1}`
+function generateUniqueSlug(title: string, prisma: PrismaClient) {
+  const slug = title.toLowerCase().replace(/\s/g, '-');
+  return `${slug}-${genRandomString(7)}`;
 }
 
 export const articleRouter = createTRPCRouter({
@@ -57,10 +59,10 @@ export const articleRouter = createTRPCRouter({
     })
     .input(paginationInputSchema)
     .output(articleListSchema)
-    .query(async opts => {
-      const { input, ctx } = opts
+    .query(async (opts) => {
+      const { input, ctx } = opts;
 
-      const skip = Math.max(0, (input.offset ?? 1) - 1) * input.limit
+      const skip = Math.max(0, (input.offset ?? 1) - 1) * input.limit;
       const where = {
         author: {
           followedByUsers: {
@@ -69,7 +71,7 @@ export const articleRouter = createTRPCRouter({
             },
           },
         },
-      }
+      };
 
       const articles = await ctx.prisma.article.findMany({
         take: input.limit,
@@ -82,11 +84,11 @@ export const articleRouter = createTRPCRouter({
           tagList: { orderBy: { value: 'asc' } },
         },
         where,
-      })
-      const articlesCount = await ctx.prisma.article.count({ where })
+      });
+      const articlesCount = await ctx.prisma.article.count({ where });
 
       return {
-        articles: articles.map(article => ({
+        articles: articles.map((article) => ({
           ...article,
           author: {
             ...article.author,
@@ -96,7 +98,7 @@ export const articleRouter = createTRPCRouter({
           favoritesCount: article._count.favoritedBy,
         })),
         articlesCount,
-      }
+      };
     }),
   getArticles: publicProcedure
     .meta({
@@ -115,20 +117,24 @@ export const articleRouter = createTRPCRouter({
         tag: z.string().optional(),
         author: z.string().optional(),
         favorited: z.string().optional(),
-      }),
+      })
     )
     .output(articleListSchema)
-    .query(async opts => {
-      const { input, ctx } = opts
+    .query(async (opts) => {
+      const { input, ctx } = opts;
 
-      const skip = Math.max(0, (input.offset ?? 1) - 1) * input.limit
+      const skip = Math.max(0, (input.offset ?? 1) - 1) * input.limit;
       const where = {
         AND: [
-          input.tag && { tagList: { some: { value: { contains: input.tag } } } },
+          input.tag && {
+            tagList: { some: { value: { contains: input.tag } } },
+          },
           input.author && { author: { username: input.author } },
-          input.favorited && { favoritedBy: { some: { username: input.favorited } } },
+          input.favorited && {
+            favoritedBy: { some: { username: input.favorited } },
+          },
         ].filter(truthy),
-      }
+      };
 
       const articles = await ctx.prisma.article.findMany({
         take: input.limit,
@@ -148,11 +154,11 @@ export const articleRouter = createTRPCRouter({
           favoritedBy: { select: { id: true }, where: { id: ctx.user?.id } },
         },
         where,
-      })
-      const articlesCount = await ctx.prisma.article.count({ where })
+      });
+      const articlesCount = await ctx.prisma.article.count({ where });
 
       return {
-        articles: articles.map(article => ({
+        articles: articles.map((article) => ({
           ...article,
           author: {
             ...article.author,
@@ -162,7 +168,7 @@ export const articleRouter = createTRPCRouter({
           favoritesCount: article._count.favoritedBy,
         })),
         articlesCount,
-      }
+      };
     }),
   createArticle: protectedProcedure
     .meta({
@@ -180,20 +186,20 @@ export const articleRouter = createTRPCRouter({
         article: articleSchema
           .pick({ title: true, description: true, body: true })
           .extend({ tagList: z.string().array() }),
-      }),
+      })
     )
     .output(z.object({ article: articleSchema }))
-    .mutation(async opts => {
-      const { input, ctx } = opts
+    .mutation(async (opts) => {
+      const { input, ctx } = opts;
 
-      const createdAt = new Date()
-      const slug = await generateUniqueSlug(input.article.title, ctx.prisma)
+      const createdAt = new Date();
+      const slug = generateUniqueSlug(input.article.title, ctx.prisma);
 
       const article = await ctx.prisma.article.create({
         data: {
           ...input.article,
           tagList: {
-            connectOrCreate: input.article.tagList.map(tag => ({
+            connectOrCreate: input.article.tagList.map((tag) => ({
               where: { value: tag },
               create: { value: tag },
             })),
@@ -207,7 +213,7 @@ export const articleRouter = createTRPCRouter({
           author: true,
           tagList: { orderBy: { value: 'asc' } },
         },
-      })
+      });
 
       return {
         article: {
@@ -219,7 +225,7 @@ export const articleRouter = createTRPCRouter({
           favorited: false, // Since the article was just created, the user has not favorited it yet
           favoritesCount: 0,
         },
-      }
+      };
     }),
   getArticlesBySlug: publicProcedure
     .meta({
@@ -234,8 +240,8 @@ export const articleRouter = createTRPCRouter({
     })
     .input(z.object({ slug: z.string().nonempty() }))
     .output(z.object({ article: articleSchema }))
-    .query(async opts => {
-      const { input, ctx } = opts
+    .query(async (opts) => {
+      const { input, ctx } = opts;
 
       const article = await ctx.prisma.article.findUnique({
         include: {
@@ -254,13 +260,13 @@ export const articleRouter = createTRPCRouter({
         where: {
           slug: input.slug,
         },
-      })
+      });
 
       if (!article) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Article not found',
-        })
+        });
       }
 
       return {
@@ -273,7 +279,7 @@ export const articleRouter = createTRPCRouter({
           favorited: article.favoritedBy.length > 0,
           favoritesCount: article._count.favoritedBy,
         },
-      }
+      };
     }),
   updateArticle: protectedProcedure
     .meta({
@@ -289,17 +295,19 @@ export const articleRouter = createTRPCRouter({
     .input(
       z.object({
         slug: z.string().nonempty(),
-        article: articleSchema.pick({ title: true, description: true, body: true }).partial(),
-      }),
+        article: articleSchema
+          .pick({ title: true, description: true, body: true })
+          .partial(),
+      })
     )
     .output(z.object({ article: articleSchema }))
-    .mutation(async opts => {
-      const { input, ctx } = opts
+    .mutation(async (opts) => {
+      const { input, ctx } = opts;
 
-      const updatedAt = new Date()
-      let slug = input.slug
+      const updatedAt = new Date();
+      let slug = input.slug;
       if (input.article.title) {
-        slug = await generateUniqueSlug(input.article.title, ctx.prisma)
+        slug = generateUniqueSlug(input.article.title, ctx.prisma);
       }
 
       const article = await ctx.prisma.article.update({
@@ -324,7 +332,7 @@ export const articleRouter = createTRPCRouter({
           favoritedBy: { select: { id: true }, where: { id: ctx.user.id } },
           tagList: { orderBy: { value: 'asc' } },
         },
-      })
+      });
 
       return {
         article: {
@@ -336,7 +344,7 @@ export const articleRouter = createTRPCRouter({
           favorited: article.favoritedBy.length > 0,
           favoritesCount: article._count.favoritedBy,
         },
-      }
+      };
     }),
   deleteArticle: protectedProcedure
     .meta({
@@ -351,11 +359,11 @@ export const articleRouter = createTRPCRouter({
     })
     .input(z.object({ slug: z.string().nonempty() }))
     .output(z.void())
-    .mutation(async opts => {
-      const { input, ctx } = opts
+    .mutation(async (opts) => {
+      const { input, ctx } = opts;
 
       await ctx.prisma.article.delete({
         where: { slug: input.slug },
-      })
+      });
     }),
-})
+});

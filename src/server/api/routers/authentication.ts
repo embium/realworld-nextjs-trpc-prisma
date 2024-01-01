@@ -1,19 +1,26 @@
-import { env } from '$/env.mjs'
-import { truthy } from '$/lib/types'
-import { createTRPCRouter, protectedProcedure, publicProcedure } from '$/server/api/trpc'
-import { TRPCError } from '@trpc/server'
-import { compare, hash } from 'bcrypt'
-import { sign } from 'jsonwebtoken'
-import { z } from 'zod'
+import { env } from '$/env.mjs';
+import { truthy } from '$/lib/types';
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from '$/server/api/trpc';
+import { TRPCError } from '@trpc/server';
+import { compare, hash } from 'bcrypt';
+import { sign } from 'jsonwebtoken';
+import { z } from 'zod';
 
 export const userSchema = z.object({
-  email: z.string().email(),
+  name: z.string(),
   username: z.string().nonempty(),
+  email: z.string().email(),
   token: z.string().nonempty(),
-  bio: z.string().nonempty().nullish(),
+  bio: z.string().nullish(),
   image: z.string().url().nullish(),
-})
-const userSchemaWithPassword = userSchema.extend({ password: z.string().min(8) })
+});
+const userSchemaWithPassword = userSchema.extend({
+  password: z.string().min(8),
+});
 
 export const authenticationRouter = createTRPCRouter({
   login: publicProcedure
@@ -30,38 +37,41 @@ export const authenticationRouter = createTRPCRouter({
     .input(
       z.object({
         user: userSchemaWithPassword.pick({ email: true, password: true }),
-      }),
+      })
     )
     .output(z.object({ user: userSchema }))
-    .mutation(async opts => {
-      const { input, ctx } = opts
+    .mutation(async (opts) => {
+      const { input, ctx } = opts;
 
       const user = await ctx.prisma.user.findUnique({
         where: { email: input.user.email },
-      })
+      });
 
       if (!user) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
           message: 'Password did not match',
-        })
+        });
       }
 
-      const passwordMatch = await compare(input.user.password, user.passwordHash)
+      const passwordMatch = await compare(
+        input.user.password,
+        user.passwordHash
+      );
       if (!passwordMatch) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
           message: 'Password did not match',
-        })
+        });
       }
 
-      const token = sign({ id: user.id }, env.JWT_SECRET)
+      const token = sign({ id: user.id }, env.JWT_SECRET);
       return {
         user: {
           ...user,
           token,
         },
-      }
+      };
     }),
   register: publicProcedure
     .meta({
@@ -76,41 +86,49 @@ export const authenticationRouter = createTRPCRouter({
     })
     .input(
       z.object({
-        user: userSchemaWithPassword.pick({ username: true, email: true, password: true }),
-      }),
+        user: userSchemaWithPassword.pick({
+          name: true,
+          username: true,
+          email: true,
+          password: true,
+        }),
+      })
     )
     .output(z.object({ user: userSchema }))
-    .mutation(async opts => {
-      const { input, ctx } = opts
+    .mutation(async (opts) => {
+      const { input, ctx } = opts;
 
       const existingUser = await ctx.prisma.user.findFirst({
-        where: { OR: [{ email: input.user.email }, { username: input.user.username }] },
-      })
+        where: {
+          OR: [{ email: input.user.email }, { username: input.user.username }],
+        },
+      });
 
       if (!!existingUser) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'User already exists',
-        })
+        });
       }
 
-      const passwordHash = await hash(input.user.password, 10)
+      const passwordHash = await hash(input.user.password, 10);
       const user = await ctx.prisma.user.create({
         data: {
+          name: input.user.name,
           username: input.user.username,
           email: input.user.email,
           passwordHash,
           image: 'https://api.realworld.io/images/smiley-cyrus.jpeg',
         },
-      })
+      });
 
-      const token = sign({ id: user.id }, env.JWT_SECRET)
+      const token = sign({ id: user.id }, env.JWT_SECRET);
       return {
         user: {
           ...user,
           token,
         },
-      }
+      };
     }),
   me: protectedProcedure
     .meta({
@@ -128,22 +146,22 @@ export const authenticationRouter = createTRPCRouter({
     .query(async ({ ctx }) => {
       const user = await ctx.prisma.user.findUnique({
         where: { id: ctx.user.id },
-      })
+      });
 
       if (!user) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
           message: 'User not found',
-        })
+        });
       }
 
-      const token = sign({ id: user.id }, env.JWT_SECRET)
+      const token = sign({ id: user.id }, env.JWT_SECRET);
       return {
         user: {
           ...user,
           token,
         },
-      }
+      };
     }),
   updateUser: protectedProcedure
     .meta({
@@ -158,18 +176,18 @@ export const authenticationRouter = createTRPCRouter({
     })
     .input(userSchemaWithPassword.partial())
     .output(z.object({ user: userSchema }))
-    .mutation(async opts => {
-      const { input, ctx } = opts
+    .mutation(async (opts) => {
+      const { input, ctx } = opts;
 
       const user = await ctx.prisma.user.findUnique({
         where: { id: ctx.user.id },
-      })
+      });
 
       if (!user) {
         throw new TRPCError({
           code: 'UNAUTHORIZED',
           message: 'User not found',
-        })
+        });
       }
 
       // Check if another user already has the proposed email or username
@@ -181,32 +199,33 @@ export const authenticationRouter = createTRPCRouter({
           ].filter(truthy),
           NOT: { id: ctx.user.id },
         },
-      })
+      });
 
       if (!!userWithSameNameOrEmail) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'User already exists',
-        })
+        });
       }
 
       const updatedUser = await ctx.prisma.user.update({
         where: { id: ctx.user.id },
         data: {
+          name: input.name,
           username: input.username,
           email: input.email,
           bio: input.bio,
           passwordHash: input.password && (await hash(input.password, 10)),
           image: input.image || null,
         },
-      })
+      });
 
-      const token = sign({ id: updatedUser.id }, env.JWT_SECRET)
+      const token = sign({ id: updatedUser.id }, env.JWT_SECRET);
       return {
         user: {
           ...updatedUser,
           token,
         },
-      }
+      };
     }),
-})
+});

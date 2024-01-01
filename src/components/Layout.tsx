@@ -1,27 +1,27 @@
-'use client'
+'use client';
 // noinspection JSUnresolvedLibraryURL
 
-import { api, isLoggedIn } from '$/lib/api'
-import Head from 'next/head'
-import Image from 'next/image'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import React, { type FunctionComponent, useEffect } from 'react'
+import { api, isLoggedIn } from '$/lib/api';
+import Head from 'next/head';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import React, { type FunctionComponent, useEffect } from 'react';
 
 interface LayoutProps {
-  children: React.ReactNode
-  privateRoute?: boolean
-  restrictForUsername?: string
-  title?: string
+  children: React.ReactNode;
+  privateRoute?: boolean;
+  restrictForUsername?: string;
+  title?: string;
 }
 
-type Props = LayoutProps
+type Props = LayoutProps;
 
 const guestLinks: Array<[string, string]> = [
   ['/', 'Home'],
   ['/login', 'Sign in'],
   ['/register', 'Sign up'],
-]
+];
 
 export const Layout: FunctionComponent<Props> = ({
   children,
@@ -29,22 +29,25 @@ export const Layout: FunctionComponent<Props> = ({
   restrictForUsername,
   title,
 }) => {
-  const { push, pathname } = useRouter()
+  const { push, pathname } = useRouter();
 
   // Get current user
   const { data: { user } = {}, isLoading } = api.auth.me.useQuery(undefined, {
     enabled: isLoggedIn(),
-  })
+  });
 
   // If this is a private route and the user is not logged in, redirect to the login page
   useEffect(() => {
-    const isRestricted = restrictForUsername && user?.username !== restrictForUsername && !isLoading
-    const isPrivateRoute = privateRoute && !isLoading && !user
+    const isRestricted =
+      restrictForUsername &&
+      user?.username !== restrictForUsername &&
+      !isLoading;
+    const isPrivateRoute = privateRoute && !isLoading && !user;
     if (!isRestricted && !isPrivateRoute) {
-      return
+      return;
     }
-    push('/').catch(console.error)
-  }, [push, privateRoute, restrictForUsername, user, isLoading])
+    push('/').catch(console.error);
+  }, [push, privateRoute, restrictForUsername, user, isLoading]);
 
   return (
     <>
@@ -54,18 +57,26 @@ export const Layout: FunctionComponent<Props> = ({
       {user ? (
         <nav className="navbar navbar-light">
           <div className="container">
-            <Link className="navbar-brand" href="/">
+            <Link
+              className="navbar-brand"
+              href="/"
+            >
               conduit
             </Link>
             <ul className="nav navbar-nav pull-xs-right">
               <li className="nav-item">
-                <Link className={`nav-link${pathname === '/' ? ' active' : ''}`} href="/">
+                <Link
+                  className={`nav-link${pathname === '/' ? ' active' : ''}`}
+                  href="/"
+                >
                   Home
                 </Link>
               </li>
               <li className="nav-item">
                 <Link
-                  className={`nav-link${pathname === '/editor' ? ' active' : ''}`}
+                  className={`nav-link${
+                    pathname === '/editor' ? ' active' : ''
+                  }`}
                   href="/editor"
                 >
                   <i className="ion-compose" /> New Article
@@ -73,7 +84,9 @@ export const Layout: FunctionComponent<Props> = ({
               </li>
               <li className="nav-item">
                 <Link
-                  className={`nav-link${pathname === '/settings' ? ' active' : ''}`}
+                  className={`nav-link${
+                    pathname === '/settings' ? ' active' : ''
+                  }`}
                   href="/settings"
                 >
                   <i className="ion-gear-a" /> Settings
@@ -82,7 +95,9 @@ export const Layout: FunctionComponent<Props> = ({
               <li className="nav-item">
                 <Link
                   className={`nav-link${
-                    pathname === `/profile/${encodeURIComponent(user.username)}` ? ' active' : ''
+                    pathname === `/profile/${encodeURIComponent(user.username)}`
+                      ? ' active'
+                      : ''
                   }`}
                   href={`/profile/${encodeURIComponent(user.username)}`}
                 >
@@ -95,7 +110,7 @@ export const Layout: FunctionComponent<Props> = ({
                       height={26}
                     />
                   )}
-                  {user.username}
+                  {user.name}
                 </Link>
               </li>
             </ul>
@@ -104,12 +119,18 @@ export const Layout: FunctionComponent<Props> = ({
       ) : (
         <nav className="navbar navbar-light">
           <div className="container">
-            <Link className="navbar-brand" href="/">
+            <Link
+              className="navbar-brand"
+              href="/"
+            >
               conduit
             </Link>
             <ul className="nav navbar-nav pull-xs-right">
               {guestLinks.map(([path, text]) => (
-                <li key={path} className="nav-item">
+                <li
+                  key={path}
+                  className="nav-item"
+                >
                   <Link
                     className={['nav-link', path === pathname && 'active']
                       .filter(Boolean)
@@ -127,15 +148,19 @@ export const Layout: FunctionComponent<Props> = ({
       {children}
       <footer>
         <div className="container">
-          <Link href="/" className="logo-font">
+          <Link
+            href="/"
+            className="logo-font"
+          >
             conduit
           </Link>
           <span className="attribution">
-            An interactive learning project from <a href="https://thinkster.io">Thinkster</a>. Code
-            &amp; design licensed under MIT.
+            An interactive learning project from{' '}
+            <a href="https://thinkster.io">Thinkster</a>. Code &amp; design
+            licensed under MIT.
           </span>
         </div>
       </footer>
     </>
-  )
-}
+  );
+};
